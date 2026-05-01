@@ -1,0 +1,31 @@
+---
+- name: Remove EPG bindings
+  hosts: apic
+  connection: local
+  gather_facts: false
+  vars:
+    target_node: "101"
+    target_port: "10"
+    pod_id: "1" 
+    common_args: &common_args
+      host: "{{ ansible_host }}"
+      username: "{{ ansible_user }}"
+      password: "{{ ansible_password }}"
+      validate_certs: false
+
+  tasks:
+    - name: Delete the discovered bindings
+      cisco.aci.aci_static_binding_to_epg:
+        <<: *common_args
+        tenant: Demo_Tenant
+        app_profile: Demo_App
+        epg: "{{ item.item.fvAEPg.attributes.name }}"
+        pod_id: "{{ pod_id }}"
+        leafs: "{{ target_node }}"
+        interface: "1/{{ target_port }}"
+        state: absent
+      loop: "{{ binding_results.results }}"
+      # Only execute if the query actually found a binding
+      when: item.current | default([]) | length > 0
+      loop_control:
+        label: "Deleting binding from: {{ item.item.fvAEPg.attributes.name }}"

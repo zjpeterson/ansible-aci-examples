@@ -1,0 +1,56 @@
+---
+- name: Find EPG bindings
+  hosts: apic
+  connection: local
+  gather_facts: false
+  vars:
+    target_node: "101"
+    target_port: "10"
+    pod_id: "1" 
+    common_args: &common_args
+      host: "{{ ansible_host }}"
+      username: "{{ ansible_user }}"
+      password: "{{ ansible_password }}"
+      validate_certs: false
+
+  tasks:
+    - name: Get EPG Hierarchy
+      cisco.aci.aci_epg:
+        <<: *common_args
+        tenant: Demo_Tenant
+        app_profile: Demo_App
+        state: query
+      register: all_epgs
+
+    - name: Find static bindings on the failed port
+      cisco.aci.aci_static_binding_to_epg:
+        <<: *common_args
+        tenant: Demo_Tenant
+        app_profile: Demo_App
+        epg: "{{ item.fvAEPg.attributes.name }}"
+        pod_id: "{{ pod_id }}"
+        leafs: "{{ target_node }}"
+        interface: "1/{{ target_port }}"
+        state: query
+      loop: "{{ all_epgs.current[0].fvAp.children }}"
+      register: binding_query
+      loop_control:
+        label: "Checking EPG: {{ item.fvAEPg.attributes.name }}"
+
+    - name: Save results
+      ansible.builtin.set_stats:
+        data:
+          binding_results: "{{ binding_query }}"
+
+    - name: Show results
+      ansible.builtin.debug:
+        msg: |
+          =============================================================
+          Ansible inspected the fabric and found Node {{ target_node }}, Port 1/{{ target_port }}
+          is currently attached to the following Application EPGs:
+          {% for result in binding_query.results %}
+          {% if result.current | default([]) | length > 0 %}
+            - {{ result.item.fvAEPg.attributes.name }}
+          {% endif %}
+          {% endfor %}
+          =============================================================
