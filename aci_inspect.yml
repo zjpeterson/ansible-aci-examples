@@ -6,6 +6,8 @@
   vars:
     target_node: "101"
     target_port: "10"
+    target_tenant: Demo_Tenant
+    target_app_profile: Demo_App
     pod_id: "1" 
     common_args: &common_args
       host: "{{ ansible_host }}"
@@ -17,16 +19,16 @@
     - name: Get EPG Hierarchy
       cisco.aci.aci_epg:
         <<: *common_args
-        tenant: Demo_Tenant
-        app_profile: Demo_App
+        tenant: "{{ target_tenant }}"
+        app_profile: "{{ target_app_profile }}"
         state: query
       register: all_epgs
 
-    - name: Find static bindings on the failed port
+    - name: Find static bindings on the port
       cisco.aci.aci_static_binding_to_epg:
         <<: *common_args
-        tenant: Demo_Tenant
-        app_profile: Demo_App
+        tenant: "{{ target_tenant }}"
+        app_profile: "{{ target_app_profile }}"
         epg: "{{ item.fvAEPg.attributes.name }}"
         pod_id: "{{ pod_id }}"
         leafs: "{{ target_node }}"
