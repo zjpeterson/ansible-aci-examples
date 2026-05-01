@@ -1,4 +1,4 @@
-- name: ACI Full Stack Populator - Final String Fix
+- name: ACI Full Stack Populator
   hosts: apic
   connection: local
   gather_facts: false
@@ -156,8 +156,8 @@
         epg: "App_Ref_{{ item }}"
         domain: Demo_Phys_Dom
         domain_type: phys
-        resolution_immediacy: immediate  # Fixed parameter name
-        deploy_immediacy: immediate      # Added to ensure push
+        resolution_immediacy: immediate
+        deploy_immediacy: immediate
         state: present
       loop: [1, 2, 3, 4, 5]
 
