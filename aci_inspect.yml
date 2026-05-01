@@ -42,15 +42,10 @@
         data:
           binding_results: "{{ binding_query }}"
 
-    - name: Show results
-      ansible.builtin.debug:
-        msg: |
-          =============================================================
-          Ansible inspected the fabric and found Node {{ target_node }}, Port 1/{{ target_port }}
-          is currently attached to the following Application EPGs:
-          {% for result in binding_query.results %}
-          {% if result.current | default([]) | length > 0 %}
-            - {{ result.item.fvAEPg.attributes.name }}
-          {% endif %}
-          {% endfor %}
-          =============================================================
+    - name: Show detected bindings
+      debug:
+        msg: "FOUND: EPG '{{ item.item.fvAEPg.attributes.name }}' is bound to Node {{ target_node }}, Port 1/{{ target_port }}"
+      loop: "{{ binding_query.results }}"
+      when: item.current | default([]) | length > 0
+      loop_control:
+        label: "{{ item.item.fvAEPg.attributes.name }}"
