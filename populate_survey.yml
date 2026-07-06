@@ -1,0 +1,120 @@
+---
+- name: Single access port
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    default_tenant: demo_tenant
+    default_ap: demo_ap
+    default_pg: demo_access_pg
+
+  tasks:
+    - name: Query all Tenants
+      cisco.aci.aci_tenant:
+        state: query
+      register: tenant_query
+
+    - name: Query all Application Profiles
+      cisco.aci.aci_ap:
+        state: query
+      register: ap_query
+
+    - name: Query all Application EPGs
+      cisco.aci.aci_epg:
+        state: query
+      register: epg_query
+
+    - name: Query all Access Port Policy Groups
+      cisco.aci.aci_interface_policy_leaf_policy_group:
+        state: query
+        lag_type: leaf
+      register: pg_query
+
+    - name: Query all Fabric Nodes to find active Leafs
+      cisco.aci.aci_fabric_node:
+        state: query
+      register: node_query
+
+    - name: Parse APIC Data into Clean Lists
+      ansible.builtin.set_fact:
+        valid_tenants: "{{ tenant_query.current | map(attribute='fvTenant.attributes.name') | list }}"
+        valid_aps: "{{ ap_query.current | map(attribute='fvAp.attributes.name') | unique | list }}"
+        valid_epgs: "{{ epg_query.current | map(attribute='fvAEPg.attributes.name') | unique | list }}"
+        valid_pgs: "{{ pg_query.current | map(attribute='infraAccPortGrp.attributes.name') | list }}"
+        valid_leafs: >-
+          {{
+            node_query.current
+            | map(attribute='fabricNodeIdentP.attributes')
+            | selectattr('role', 'equalto', 'leaf')
+            | map(attribute='nodeId')
+            | list
+          }}
+
+    - name: Show extracted lists
+      ansible.builtin.debug:
+        msg:
+          - "Tenants: {{ valid_tenants }}"
+          - "APs: {{ valid_aps }}"
+          - "EPGs: {{ valid_epgs }}"
+          - "Policy Groups: {{ valid_pgs }}"
+          - "Leaf IDs: {{ valid_leafs }}"
+
+    - name: Set survey details
+      ansible.controller.job_template:
+        name: ACI - Single access port config
+        project: ansible-aci-examples
+        playbook: access_port_single.yml
+        inventory: Local API
+        credentials:
+          - ACI Sim Custom (RHDP)
+          - AAP (Self)
+        survey_enabled: true
+        survey_spec:
+          name: ''
+          description: ''
+          spec:
+            - question_name: "Tenant"
+              variable: tenant_name
+              type: multiplechoice
+              choices: "{{ valid_tenants }}"
+              required: true
+              default: "{{ default_tenant }}"
+
+            - question_name: "Application Profile"
+              variable: ap_name
+              type: multiplechoice
+              choices: "{{ valid_aps }}"
+              required: true
+              default: "{{ default_ap }}"
+
+            - question_name: "Application EPG"
+              variable: epg_name
+              type: multiplechoice
+              choices: "{{ valid_epgs }}"
+              required: true
+
+            - question_name: "Access Port Policy Group"
+              variable: pg_name
+              type: multiplechoice
+              choices: "{{ valid_pgs }}"
+              required: true
+              default: "{{ default_pg }}"
+
+            - question_name: "Leaf ID"
+              variable: leaf_num
+              type: multiplechoice
+              choices: "{{ valid_leafs }}"
+              required: true
+
+            - question_name: "Interface Number"
+              variable: leaf_int_num
+              type: integer
+              min: 1
+              max: 64
+              required: true
+
+            - question_name: "Interface Description"
+              variable: leaf_int_desc
+              type: text
+              required: false
