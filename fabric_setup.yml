@@ -1,0 +1,135 @@
+---
+- name: ACI Sim Setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    valid_leaf_ids:
+      - 101
+      - 102
+
+
+  tasks:
+    - name: Ensure Interface Leaf Profile
+      cisco.aci.aci_interface_policy_leaf_profile:
+        leaf_interface_profile: interface_profile_{{ item }}
+        state: present
+      loop: "{{ valid_leaf_ids }}"
+
+    - name: Ensure Switch Leaf Profile
+      cisco.aci.aci_switch_policy_leaf_profile:
+        leaf_profile: switch_profile_{{ item }}
+        state: present
+      loop: "{{ valid_leaf_ids }}"
+
+    - name: Assign switches to Switch Profile
+      cisco.aci.aci_switch_leaf_selector:
+        leaf_profile: switch_profile_{{ item }}
+        leaf_node_blk: block1
+        from: "{{ item }}"
+        to: "{{ item }}"
+        leaf: leaf_selector_{{ item }}
+        state: present
+      loop: "{{ valid_leaf_ids }}"
+
+    - name: Bind the Interface Profile to the Switch Profile
+      cisco.aci.aci_interface_selector_to_switch_policy_leaf_profile:
+        leaf_profile: switch_profile_{{ item }}
+        interface_selector: interface_profile_{{ item }}
+        state: present
+      loop: "{{ valid_leaf_ids }}"
+
+    - name: Create VLAN Pool
+      cisco.aci.aci_vlan_pool:
+        pool: demo_vlan_pool
+        pool_allocation_mode: static
+        state: present
+
+    - name: Add VLAN Range to the Pool
+      cisco.aci.aci_vlan_pool_encap_block:
+        pool: demo_vlan_pool
+        pool_allocation_mode: static
+        block_start: 10
+        block_end: 100
+        state: present
+
+    - name: Create Physical Domain
+      cisco.aci.aci_domain:
+        domain: demo_phys_dom
+        domain_type: phys
+        state: present
+
+    - name: Bind Physical Domain to VLAN Pool
+      cisco.aci.aci_domain_to_vlan_pool:
+        domain: demo_phys_dom
+        domain_type: phys
+        pool: demo_vlan_pool
+        pool_allocation_mode: static
+        state: present
+
+    - name: Create AEP
+      cisco.aci.aci_aep:
+        aep: demo_aep
+        state: present
+
+    - name: Bind AAEP to Physical Domain
+      cisco.aci.aci_aep_to_domain:
+        aep: demo_aep
+        domain: demo_phys_dom
+        domain_type: phys
+        state: present
+
+    - name: Ensure Access Port Policy Group exists
+      cisco.aci.aci_interface_policy_leaf_policy_group:
+        lag_type: leaf
+        policy_group: demo_access_pg
+        aep: demo_aep
+        state: present
+
+    - name: Ensure Tenant exists
+      cisco.aci.aci_tenant:
+        tenant: demo_tenant
+        state: present
+
+    - name: Ensure VRF exists
+      cisco.aci.aci_vrf:
+        tenant: demo_tenant
+        vrf: demo_vrf
+        state: present
+
+    - name: Ensure Bridge Domain exists
+      cisco.aci.aci_bd:
+        tenant: demo_tenant
+        bd: demo_bd
+        vrf: demo_vrf
+        state: present
+
+    - name: Ensure Application Profile exists
+      cisco.aci.aci_ap:
+        tenant: demo_tenant
+        ap: demo_ap
+        state: present
+
+    - name: Ensure Application EPG exists
+      cisco.aci.aci_epg:
+        tenant: demo_tenant
+        ap: demo_ap
+        epg: demo_epg_vlan{{ item }}
+        bd: demo_bd
+        state: present
+      loop: "{{ range(10, 20) | list }}"
+      loop_control:
+        pause: 1
+
+    - name: Bind Physical Domain to EPG
+      cisco.aci.aci_epg_to_domain:
+        tenant: demo_tenant
+        ap: demo_ap
+        epg: demo_epg_vlan{{ item }}
+        domain: demo_phys_dom
+        domain_type: phys
+        state: present
+      loop: "{{ range(10, 20) | list }}"
+      loop_control:
+        pause: 1

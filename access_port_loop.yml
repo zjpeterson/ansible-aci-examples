@@ -1,0 +1,56 @@
+---
+- name: Multiple access ports
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    job_data:
+      - state: present
+        tenant_name: demo_tenant
+        ap_name: demo_ap
+        epg_name: demo_epg_vlan15
+        pg_name: demo_access_pg
+        leaf_num: '101'
+        leaf_int_num: '12'
+        leaf_int_desc: "Demo Bare Metal Server A"
+        pod_num: '1'
+
+      - state: present
+        tenant_name: demo_tenant
+        ap_name: demo_ap
+        epg_name: demo_epg_vlan10
+        pg_name: demo_access_pg
+        leaf_num: '102'
+        leaf_int_num: '15'
+        leaf_int_desc: "Demo Bare Metal Server B"
+        pod_num: '1'
+
+  tasks:
+    - name: Provision interface selector
+      cisco.aci.aci_access_port_to_interface_policy_leaf_profile:
+        leaf_interface_profile: interface_profile_{{ item.leaf_num }}
+        state: "{{ item.state }}"
+        leaf_port_blk: block2
+        access_port_selector: "eth-01-{{ item.leaf_int_num | int }}"
+        from: "{{ item.leaf_int_num }}"
+        to: "{{ item.leaf_int_num }}"
+        leaf_port_blk_description: "{{ item.leaf_int_desc }}"
+        policy_group: "{{ item.pg_name }}"
+        interface_type: switch_port
+      loop: "{{ job_data }}"
+
+    - name: Provision static binding to EPG
+      cisco.aci.aci_static_binding_to_epg:
+        state: "{{ item.state }}"
+        interface_mode: 802.1p
+        interface_type: switch_port
+        deploy_immediacy: immediate
+        tenant: "{{ item.tenant_name }}"
+        ap: "{{ item.ap_name }}"
+        epg: "{{ item.epg_name }}"
+        pod: "{{ item.pod_num }}"
+        interface: "1/{{ item.leaf_int_num | regex_replace('^0+') }}"
+        leafs: "{{ item.leaf_num }}"
+        vlan: "{{ item.epg_name | regex_search('\\d+') }}"
+      loop: "{{ job_data }}"
