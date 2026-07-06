@@ -68,6 +68,8 @@
         inventory: Local API
         credentials:
           - ACI Sim Custom (RHDP)
+        labels:
+          - network
         survey_enabled: true
         survey_spec:
           name: ''
