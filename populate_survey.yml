@@ -68,7 +68,6 @@
         inventory: Local API
         credentials:
           - ACI Sim Custom (RHDP)
-          - AAP (Self)
         survey_enabled: true
         survey_spec:
           name: ''
