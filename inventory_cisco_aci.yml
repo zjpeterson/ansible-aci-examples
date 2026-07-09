@@ -1,0 +1,5 @@
+---
+plugin: cisco.aci.aci_inventory_system
+keyed_groups:
+  - prefix: role
+    key: role
